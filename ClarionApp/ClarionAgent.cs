@@ -203,7 +203,7 @@ namespace ClarionApp
         /// <summary>
         /// Setup the ACS subsystem
         /// </summary>
-        private void SetupACS()
+        private void SetupACS() // EXPLAIN: executado uma vez quando o agente é criado
         {
             // Create Rule to avoid collision with wall
             SupportCalculator avoidCollisionWallSupportCalculator = FixedRuleToAvoidCollisionWall;
@@ -281,34 +281,42 @@ namespace ClarionApp
 			Console.WriteLine("Starting Cognitive Cycle ... press CTRL-C to finish !");
             // Cognitive Cycle starts here getting sensorial information
             while (CurrentCognitiveCycle != MaxNumberOfCognitiveCycles)
-            {   
-				// Get current sensory information                    
-				IList<Thing> currentSceneInWS3D = processSensoryInformation();
-
-                // Make the perception
-                SensoryInformation si = prepareSensoryInformation(currentSceneInWS3D);
-
-                //Perceive the sensory information
-                CurrentAgent.Perceive(si);
-
-                //Choose an action
-                ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction(si);
-
-                // Get the selected action
-                String actionLabel = chosen.LabelAsIComparable.ToString();
-                CreatureActions actionType = (CreatureActions)Enum.Parse(typeof(CreatureActions), actionLabel, true);
-
-                // Call the output event handler
-				processSelectedAction(actionType);
-
-                // Increment the number of cognitive cycles
-                CurrentCognitiveCycle++;
-
-                //Wait to the agent accomplish his job
-                if (TimeBetweenCognitiveCycles > 0)
+            {
+                // Get current sensory information                    
+                try
                 {
-                    Thread.Sleep(TimeBetweenCognitiveCycles);
+				    IList<Thing> currentSceneInWS3D = processSensoryInformation();
+                    // Make the perception
+                    SensoryInformation si = prepareSensoryInformation(currentSceneInWS3D);
+
+                    //Perceive the sensory information
+                    CurrentAgent.Perceive(si);
+
+                    //Choose an action
+                    ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction(si);
+
+                    // Get the selected action
+                    String actionLabel = chosen.LabelAsIComparable.ToString();
+                    CreatureActions actionType = (CreatureActions)Enum.Parse(typeof(CreatureActions), actionLabel, true);
+
+                    // Call the output event handler
+                    processSelectedAction(actionType);
+
+                    // Increment the number of cognitive cycles
+                    CurrentCognitiveCycle++;
+
+                    //Wait to the agent accomplish his job
+                    if (TimeBetweenCognitiveCycles > 0)
+                    {
+                        Thread.Sleep(TimeBetweenCognitiveCycles);
+                    }
+                    
                 }
+                catch (Exception ex)
+                {
+                    Console.Out.WriteLine(String.Format("[ERROR] Unknown Error: {0}\n", ex.Message));
+                }
+
 			}
         }
         #endregion

@@ -25,3 +25,5 @@ hs_err_pid*
 .vs
 ClarionApp/bin
 ClarionApp/obj
+
+ws3dproxy/

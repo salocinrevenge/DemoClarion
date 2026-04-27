@@ -259,6 +259,9 @@ namespace ClarionApp
         }
 
 
+        
+
+
 		public string SendSetAngle(string creatureId, double vr, double vl, double w)
         {
             String response = String.Empty;
@@ -658,7 +661,8 @@ namespace ClarionApp
             }
             catch (Exception e)
             {
-                throw new WorldServerSendError("Error while sending message", e);
+				Console.WriteLine(" e: " + e.Message);
+				throw new WorldServerSendError("Error while sending message", e);
             }
 
             return returnDic;
@@ -872,7 +876,48 @@ namespace ClarionApp
             catch (Exception e)
             {throw new WorldServerSendError("Error while sending message", e);}
 		}	
-		
+
+        public String createDeliverySpot(Int32 x, Int32 y)
+		{
+            String response = String.Empty;
+            String foodName = String.Empty;
+
+			try
+            {
+                // Prepare the message
+                StringBuilder builder = new StringBuilder();
+                builder.Append("newDeliverySpot ");
+                builder.Append(4);
+                builder.Append(" ");
+				builder.Append(x);
+                builder.Append(" ");
+                builder.Append(y);
+
+                // Send Message
+                SendMessage(builder.ToString());
+
+                // Read the response
+                response = ReadMessage();
+
+                if (!String.IsNullOrWhiteSpace(response))
+                {
+                    string[] tokens = response.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    foodName = (tokens != null && tokens.Length > 1) ? tokens[1] : null;
+                }
+
+                return foodName;
+            }
+            catch (WorldServerConnectionError connEx)
+            {throw connEx; }
+            catch (WorldServerSendError sendEx)
+            {throw sendEx; }
+            catch (WorldServerReadError readEx)
+            {throw readEx;}
+            catch (Exception e)
+            {throw new WorldServerSendError("Error while sending message", e);}
+		}	
+
+
 		/// <summary>
 		/// Create a new brick
 		/// </summary>
@@ -1167,7 +1212,7 @@ namespace ClarionApp
             }
             catch (Exception ex)
             {
-                throw new WorldServerErrorProcessingResponse("Error while parsing GetFullStatus3d", ex);
+                throw new WorldServerErrorProcessingResponse("Error while parsing GetFullStatus3d: "+ ex.Message, ex);
             }
 
             return returnValue;
