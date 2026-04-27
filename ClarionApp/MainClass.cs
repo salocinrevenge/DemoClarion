@@ -75,7 +75,7 @@ namespace ClarionApp
                 Console.Out.WriteLine(String.Format("[ERROR] Unknown Error: {0}\n", ex.Message));
             }
 			Console.Out.WriteLine ("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
-			Application.Run();
+			//Application.Run();
 			simulationLoop();
 			Console.Out.WriteLine ("FFFFFFFFFFFFFFFFFFFFF\n");
 		}
