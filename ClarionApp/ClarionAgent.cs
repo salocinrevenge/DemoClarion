@@ -224,14 +224,40 @@ namespace ClarionApp
 			}
 		}
 
-        public double GetNextJewelTheta() { System.Console.WriteLine("GetNextJewelTheta called ...\n"); return 1.0; }
-        public double GetNextJewelRay() { System.Console.WriteLine("GetNextJewelRay called ...\n"); return 1.0; }
-        public double GetNextFoodTheta() { System.Console.WriteLine("GetNextFoodTheta called ...\n"); return 1.0; }
-        public double GetNextFoodRay() { System.Console.WriteLine("GetNextFoodRay called ...\n"); return 1.0; }
-        public double GetFuel() { System.Console.WriteLine("GetFuel called ...\n"); return 1.0; }
+        public double GetNextJewelTheta()
+        {
+            // System.Console.WriteLine("GetNextJewelTheta called ...\n");
+            return 1.0;
+        }
+        public double GetNextJewelRay() 
+        { 
+            // System.Console.WriteLine("GetNextJewelRay called ...\n");
+            return 1.0; 
+        }
+        public double GetNextFoodTheta() 
+        { 
+            // System.Console.WriteLine("GetNextFoodTheta called ...\n");
+            return 1.0; 
+        }
+        public double GetNextFoodRay() 
+        { 
+            // System.Console.WriteLine("GetNextFoodRay called ...\n");
+            return 1.0; 
+        }
+        public double GetFuel() 
+        { 
+            // System.Console.WriteLine("GetFuel called ...\n");
+            return 1.0; 
+        }
 
-        public void SetDirectionWalk(float value) { System.Console.WriteLine("SetDirectionWalk called with value: " + value + "\n"); }
-        public void SetInteract(float value) { System.Console.WriteLine("SetInteract called with value: " + value + "\n"); }
+        public void SetDirectionWalk(float value) 
+        { 
+            // System.Console.WriteLine("SetDirectionWalk called with value: " + value + "\n"); 
+        }
+        public void SetInteract(float value) 
+        { 
+            // System.Console.WriteLine("SetInteract called with value: " + value + "\n"); 
+        }
 
         #endregion
 
@@ -311,6 +337,7 @@ namespace ClarionApp
 			Creature c = (Creature) listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First();
 			int n = 0;
 			foreach(Leaflet l in c.getLeaflets()) {
+                System.Console.WriteLine("Leaflet ID: " + l.leafletID + " payment: " + l.payment + " Tipo: " + l.items[0].itemKey + "Quantity: " +l.items[0].totalNumber + "\n");
 				mind.updateLeaflet(n,l);
 				n++;
 			}
