@@ -13,6 +13,8 @@ using Gtk;
 
 namespace ClarionApp
 {
+
+
     /// <summary>
     /// Public enum that represents all possibilities of agent actions
     /// </summary>
@@ -25,6 +27,8 @@ namespace ClarionApp
 
     public class ClarionAgent
     {
+        public Leaflet bestLeaflet = null;
+        
         #region Constants
         /// <summary>
         /// Constant that represents the Visual Sensor
@@ -336,8 +340,13 @@ namespace ClarionApp
 			//Console.WriteLine(sensorialInformation);
 			Creature c = (Creature) listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First();
 			int n = 0;
+            int bestPagamento = 0;
 			foreach(Leaflet l in c.getLeaflets()) {
                 System.Console.WriteLine("Leaflet ID: " + l.leafletID + " payment: " + l.payment + " Tipo: " + l.items[0].itemKey + "Quantity: " +l.items[0].totalNumber + "\n");
+                if (l.payment > bestPagamento) {
+                    bestPagamento = l.payment;
+                    bestLeaflet = l;
+                }
 				mind.updateLeaflet(n,l);
 				n++;
 			}
@@ -379,6 +388,8 @@ namespace ClarionApp
 
                     //Choose an action
                     ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction(si);
+
+                    System.Console.WriteLine("Best leaflet payment: " + bestLeaflet.payment + "\n");
 
                     // Get the selected action
                     String actionLabel = chosen.LabelAsIComparable.ToString();
