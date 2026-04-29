@@ -1371,59 +1371,152 @@ namespace ClarionApp
         /// Get all things in the creature's vision.
         /// </summary>
         /// <returns>A list of things in vision.</returns>
-        public List<Thing> getThingsInVIsion()
-        {
-            List<Thing> things = new List<Thing>();
-            String response = String.Empty;
+        // public List<Thing> getThingsInVIsion()
+        // {
+        //     List<Thing> things = new List<Thing>();
+        //     String response = String.Empty;
 
-            try
-            {
-                // Prepare the message
-                StringBuilder builder = new StringBuilder();
-                builder.Append("getall");
+        //     try
+        //     {
+        //         // Prepare the message
+        //         StringBuilder builder = new StringBuilder();
+        //         builder.Append("getall");
 
-                // Send Message
-                SendMessage(builder.ToString());
+        //         // Send Message
+        //         SendMessage(builder.ToString());
 
-                // Read the response
-                response = ReadMessage();
+        //         // Read the response
+        //         response = ReadMessage();
 
-                // Process the response
-                string[] tokens = response.Split(' ');
-                int numberOfThings = Int32.Parse(tokens[0]);
+        //         // Process the response
+        //         string[] tokens = response.Split(' ');
+        //         // Printa os tokens
+        //         System.Console.WriteLine("Tokens received from getall command:");
+        //         foreach (string token in tokens)                {
+        //             System.Console.WriteLine(token);
+        //         }
+        //         int numberOfThings = Int32.Parse(tokens[0]); // Isso parece estar quebrando o Try
 
-                int currentToken = 1;
-                for (int i = 0; i < numberOfThings; i++)
-                {
-                    string name = tokens[currentToken++];
-                    int category = Int32.Parse(tokens[currentToken++]);
-                    // Assuming the rest of the properties are in order.
-                    // This part needs to be carefully implemented according to the exact protocol.
-                    // For now, I will just create a Thing with its name and category.
-                    Thing thing = new Thing();
-                    thing.Name = name;
-                    // You would continue to parse the rest of the thing's properties here.
-                    // For example:
-                    // thing.IsOccluded = bool.Parse(tokens[currentToken++]);
-                    // thing.X1 = double.Parse(tokens[currentToken++], CultureInfo.InvariantCulture);
-                    // ... and so on for all properties.
+        //         int currentToken = 1;
+        //         for (int i = 0; i < numberOfThings; i++)
+        //         {
+        //             string name = tokens[currentToken++];
+        //             int category = Int32.Parse(tokens[currentToken++]);
+        //             // Assuming the rest of the properties are in order.
+        //             // This part needs to be carefully implemented according to the exact protocol.
+        //             // For now, I will just create a Thing with its name and category.
+        //             Thing thing = new Thing();
+        //             thing.Name = name;
+        //             // You would continue to parse the rest of the thing's properties here.
+        //             // For example:
+        //             // thing.IsOccluded = bool.Parse(tokens[currentToken++]);
+        //             // thing.X1 = double.Parse(tokens[currentToken++], CultureInfo.InvariantCulture);
+        //             // ... and so on for all properties.
                     
-                    // For this example, I'll skip the other properties
-                    // In a real scenario, you would need to advance the 'currentToken'
-                    // for all properties of a thing.
-                    currentToken += 7; // Skipping other properties for now
+        //             // For this example, I'll skip the other properties
+        //             // In a real scenario, you would need to advance the 'currentToken'
+        //             // for all properties of a thing.
+        //             currentToken += 7; // Skipping other properties for now
 
-                    things.Add(thing);
-                }
-            }
-            catch (Exception e)
-            {
-                // Handle exceptions
-                throw new WorldServerConnectionError("Error while getting things in vision from World Server", e);
-            }
+        //             things.Add(thing);
+        //         }
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         // Handle exceptions
+        //         throw new WorldServerConnectionError("Error while getting things in vision from World Server", e);
+        //     }
 
-            return things;
-        }
+        //     return things;
+        // }
+
+        // public List<Thing> GetWorldEntities()
+        // {
+        //     List<Thing> things = new List<Thing>();
+
+        //     try
+        //     {
+        //         SendMessage("getall");
+
+        //         string response = ReadMessage();
+        //         if (String.IsNullOrWhiteSpace(response))
+        //         {
+        //             return things;
+        //         }
+
+        //         string[] tokens = response
+        //             .Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+        //             .Where(t => t != "||")
+        //             .ToArray();
+
+        //         if (tokens.Length == 0)
+        //         {
+        //             return things;
+        //         }
+
+        //         int numberOfThings;
+        //         if (!Int32.TryParse(tokens[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out numberOfThings))
+        //         {
+        //             throw new WorldServerErrorProcessingResponse("Could not evaluate properties: things quantity");
+        //         }
+
+        //         var enumerator = tokens.Skip(1).GetEnumerator();
+
+        //         for (int i = 0; i < numberOfThings; i++)
+        //         {
+        //             Thing thing = new Thing();
+        //             thing.Material = new Material3d();
+
+        //             SetAttribute(thing, "Name", enumerator);
+        //             SetAttribute(thing, "CategoryId", enumerator);
+        //             SetAttribute(thing, "IsOccluded", enumerator);
+        //             SetAttribute(thing, "X1", enumerator);
+        //             SetAttribute(thing, "X2", enumerator);
+        //             SetAttribute(thing, "Y1", enumerator);
+        //             SetAttribute(thing, "Y2", enumerator);
+        //             SetAttribute(thing, "Pitch", enumerator);
+        //             SetAttribute(thing.Material, "Hardness", enumerator);
+        //             SetAttribute(thing.Material, "Energy", enumerator);
+
+        //             if (!enumerator.MoveNext())
+        //             {
+        //                 throw new WorldServerErrorProcessingResponse("Could not evaluate property: shininess");
+        //             }
+
+        //             SetAttribute(thing.Material, "Color", enumerator);
+        //             SetAttribute(thing, "comX", enumerator);
+        //             SetAttribute(thing, "comY", enumerator);
+
+        //             things.Add(thing);
+        //         }
+
+        //         // Categoria:
+        //         // 0: Criatura
+        //         // 1: Brick
+        //         // 3: Jewel
+        //         // 4: DeliverySpot
+        //         // 21: Food
+        //         // 22: Food-n-estraga
+        //     }
+        //     catch (WorldServerConnectionError)
+        //     {
+        //         throw;
+        //     }
+        //     catch (WorldServerSendError)
+        //     {
+        //         throw;
+        //     }
+        //     catch (WorldServerReadError)
+        //     {
+        //         throw;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         throw new WorldServerErrorProcessingResponse("Error while parsing getall response: " + ex.Message, ex);
+        //     }
+
+        //     return things;
+        // }
 
         #endregion
     }

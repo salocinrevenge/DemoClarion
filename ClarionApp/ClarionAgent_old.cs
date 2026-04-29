@@ -73,12 +73,6 @@ namespace ClarionApp
         /// Perception input to indicates a wall ahead
         /// </summary>
 		private DimensionValuePair inputWallAhead;
-
-        private DimensionValuePair inputNextJewelTheta;
-        private DimensionValuePair inputNextJewelRay;
-        private DimensionValuePair inputNextFoodTheta;
-        private DimensionValuePair inputNextFoodRay;
-        private DimensionValuePair inputFuel;
         #endregion
 
         #region Action Output
@@ -90,9 +84,6 @@ namespace ClarionApp
         /// Output action that makes the agent go ahead
         /// </summary>
 		private ExternalActionChunk outputGoAhead;
-
-        private ExternalActionChunk outputDirectionWalk;
-        private ExternalActionChunk outputInteract;
         #endregion
 
         #endregion
@@ -110,32 +101,10 @@ namespace ClarionApp
 
             // Initialize Input Information
             inputWallAhead = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, DIMENSION_WALL_AHEAD);
-            inputNextJewelTheta = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, "NextJewelTheta");
-            inputNextJewelRay = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, "NextJewelRay");
-            inputNextFoodTheta = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, "NextFoodTheta");
-            inputNextFoodRay = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, "NextFoodRay");
-            inputFuel = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, "Fuel");
 
             // Initialize Output actions
             outputRotateClockwise = World.NewExternalActionChunk(CreatureActions.ROTATE_CLOCKWISE.ToString());
             outputGoAhead = World.NewExternalActionChunk(CreatureActions.GO_AHEAD.ToString());
-
-            outputDirectionWalk = World.NewExternalActionChunk("DirectionWalk");
-            outputInteract = World.NewExternalActionChunk("Interact");
-
-            SimplifiedQBPNetwork net = AgentInitializer.InitializeImplicitDecisionNetwork(CurrentAgent, SimplifiedQBPNetwork.Factory);
-            net.Input.Add(inputNextJewelTheta);
-            net.Input.Add(inputNextJewelRay);
-            net.Input.Add(inputNextFoodTheta);
-            net.Input.Add(inputNextFoodRay);
-            net.Input.Add(inputFuel);
-
-            net.Output.Add(outputDirectionWalk);
-            net.Output.Add(outputInteract);
-            CurrentAgent.Commit(net);
-
-            net.Parameters.LEARNING_RATE = 1;
-            CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
 
             //Create thread to simulation
             runThread = new Thread(CognitiveCycle);
@@ -224,15 +193,6 @@ namespace ClarionApp
 			}
 		}
 
-        public double GetNextJewelTheta() { System.Console.WriteLine("GetNextJewelTheta called ...\n"); return 1.0; }
-        public double GetNextJewelRay() { System.Console.WriteLine("GetNextJewelRay called ...\n"); return 1.0; }
-        public double GetNextFoodTheta() { System.Console.WriteLine("GetNextFoodTheta called ...\n"); return 1.0; }
-        public double GetNextFoodRay() { System.Console.WriteLine("GetNextFoodRay called ...\n"); return 1.0; }
-        public double GetFuel() { System.Console.WriteLine("GetFuel called ...\n"); return 1.0; }
-
-        public void SetDirectionWalk(float value) { System.Console.WriteLine("SetDirectionWalk called with value: " + value + "\n"); }
-        public void SetInteract(float value) { System.Console.WriteLine("SetInteract called with value: " + value + "\n"); }
-
         #endregion
 
         #region Setup Agent Methods
@@ -242,7 +202,7 @@ namespace ClarionApp
         private void SetupAgentInfraStructure()
         {
             // Setup the ACS Subsystem
-            SetupACS();
+            SetupACS();                    
         }
 
         private void SetupMS()
@@ -299,14 +259,6 @@ namespace ClarionApp
             Boolean wallAhead = listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_BRICK && item.DistanceToCreature <= 61)).Any();
             double wallAheadActivationValue = wallAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
             si.Add(inputWallAhead, wallAheadActivationValue);
-
-            si.Add(inputNextJewelTheta, GetNextJewelTheta());
-            si.Add(inputNextJewelRay, GetNextJewelRay());
-            si.Add(inputNextFoodTheta, GetNextFoodTheta());
-            si.Add(inputNextFoodRay, GetNextFoodRay());
-            si.Add(inputFuel, GetFuel());
-
-
 			//Console.WriteLine(sensorialInformation);
 			Creature c = (Creature) listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First();
 			int n = 0;
@@ -359,13 +311,6 @@ namespace ClarionApp
 
                     // Call the output event handler
                     processSelectedAction(actionType);
-
-                    // CurrentAgent.NACS does not expose GetOutput; use default values or implement the correct retrieval method here.
-                    float directionWalk = 0f;
-                    float interact = 0f;
-
-                    SetDirectionWalk(directionWalk);
-                    SetInteract(interact);
 
                     // Increment the number of cognitive cycles
                     CurrentCognitiveCycle++;
