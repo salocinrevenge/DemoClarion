@@ -102,6 +102,8 @@ namespace ClarionApp
         private Thing bestJewel = null;
         private Thing bestFood = null;
 
+        private Creature creature = null;
+
         private double Fuel = 0;
 
         #endregion
@@ -235,28 +237,102 @@ namespace ClarionApp
 
         public double GetNextJewelTheta()
         {
-            // System.Console.WriteLine("GetNextJewelTheta called ...\n");
-            return 1.0;
+            // Compute smallest signed angle (radians) to rotate creature to face the nearest jewel
+            try {
+
+                if (creature == null || bestJewel == null) return 0.0;
+
+                double dx = bestJewel.X1 - creature.X1;
+                double dy = bestJewel.Y1 - creature.Y1;
+                double targetAngle = Math.Atan2(dy, dx);
+
+
+                // current orientation (prad) is maintained in processSensoryInformation
+                double diff = targetAngle - prad;
+                while (diff > Math.PI) diff -= 2 * Math.PI;
+                while (diff <= -Math.PI) diff += 2 * Math.PI;
+                System.Console.WriteLine("Target Angle Jewel: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
+                return diff;
+            }
+            catch (Exception ex) {
+                System.Console.WriteLine("Error in GetNextJewelTheta. Returning 0.0. Exception: " + ex.Message + "\n");
+                return 0.0;
+            }
         }
         public double GetNextJewelRay() 
         { 
             // System.Console.WriteLine("GetNextJewelRay called ...\n");
-            return 1.0; 
+            try {
+
+                if (creature == null || bestJewel == null) return 0.0;
+
+                double dx = bestJewel.X1 - creature.X1;
+                double dy = bestJewel.Y1 - creature.Y1;
+                double targetAngle = Math.Atan2(dy, dx);
+
+
+                // current orientation (prad) is maintained in processSensoryInformation
+                double diff = targetAngle - prad;
+                while (diff > Math.PI) diff -= 2 * Math.PI;
+                while (diff <= -Math.PI) diff += 2 * Math.PI;
+                System.Console.WriteLine("Target Ray Jewel: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
+                return diff;
+            }
+            catch (Exception ex) {
+                System.Console.WriteLine("Error in GetNextJewelTheta. Returning 0.0. Exception: " + ex.Message + "\n");
+                return 0.0;
+            }
         }
         public double GetNextFoodTheta() 
         { 
-            // System.Console.WriteLine("GetNextFoodTheta called ...\n");
-            return 1.0; 
+            try {
+
+                if (creature == null || bestFood == null) return 0.0;
+
+                double dx = bestFood.X1 - creature.X1;
+                double dy = bestFood.Y1 - creature.Y1;
+                double targetAngle = Math.Atan2(dy, dx);
+
+
+                // current orientation (prad) is maintained in processSensoryInformation
+                double diff = targetAngle - prad;
+                while (diff > Math.PI) diff -= 2 * Math.PI;
+                while (diff <= -Math.PI) diff += 2 * Math.PI;
+                System.Console.WriteLine("Target Angle Food: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
+                return diff;
+            }
+            catch (Exception ex) {
+                System.Console.WriteLine("Error in GetNextFoodTheta. Returning 0.0. Exception: " + ex.Message + "\n");
+                return 0.0;
+            }
         }
         public double GetNextFoodRay() 
         { 
-            // System.Console.WriteLine("GetNextFoodRay called ...\n");
-            return 1.0; 
+            try {
+
+                if (creature == null || bestFood == null) return 0.0;
+
+                double dx = bestFood.X1 - creature.X1;
+                double dy = bestFood.Y1 - creature.Y1;
+                double targetAngle = Math.Atan2(dy, dx);
+
+
+                // current orientation (prad) is maintained in processSensoryInformation
+                double diff = targetAngle - prad;
+                while (diff > Math.PI) diff -= 2 * Math.PI;
+                while (diff <= -Math.PI) diff += 2 * Math.PI;
+                System.Console.WriteLine("Target Ray Food: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
+                return diff;
+            }
+            catch (Exception ex) {
+                System.Console.WriteLine("Error in GetNextFoodRay. Returning 0.0. Exception: " + ex.Message + "\n");
+                return 0.0;
+            }
         }
         public double GetFuel() 
         { 
-            // System.Console.WriteLine("GetFuel called ...\n");
-            return 1.0; 
+            System.Console.WriteLine("GetFuel called Fuel: " + Fuel + "\n");
+            return Fuel; 
         }
 
         public void SetDirectionWalk(float value) 
@@ -344,6 +420,7 @@ namespace ClarionApp
 
 			//Console.WriteLine(sensorialInformation);
 			Creature c = (Creature) listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First();
+            creature = c;
             Fuel = c.Fuel;
             System.Console.WriteLine("Fuel: " + Fuel + "\n");
 			int n = 0;
@@ -361,6 +438,9 @@ namespace ClarionApp
 
             double menorDistanciaPorCor = double.MaxValue;
             double menorDistanciaFood = double.MaxValue;
+
+            bestJewel = null;
+            bestFood = null;
 
             if (bestLeaflet != null)
             {
@@ -386,6 +466,27 @@ namespace ClarionApp
                         }
                         System.Console.WriteLine("Joia da cor " + item.itemKey + " encontrada a distância: " + joia.DistanceToCreature);
                     }
+                    if(bestJewel == null) {
+                        IEnumerable<Thing> deliverList = listOfThings.Where(t =>
+                        t.CategoryId == Thing.CATEGORY_DeliverySPOT);
+                        foreach (Thing deliverSpot in deliverList)
+                        {
+                            bestJewel = deliverSpot;
+                        }
+
+                        if (bestJewel == null) {
+
+                            bestJewel = new Thing() {
+                                Name = "DeliverySPOT",
+                                CategoryId = Thing.CATEGORY_DeliverySPOT,
+                                DistanceToCreature = double.MaxValue,
+                                X1 = 500,
+                                Y1 = 500
+                            };
+                        }
+                    }
+
+
 
 
                     IEnumerable<Thing> comidasVisivel = listOfThings.Where(t =>
