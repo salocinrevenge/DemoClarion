@@ -120,8 +120,9 @@ namespace ClarionApp
 		private void spawnThings ()
 		{
 			Random rnd = new Random ();
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 9; i++) {
 				int tipo = rnd.Next (0, 8);
+				tipo = i;
 				int randomX = rnd.Next (50, 750);
 				int randomY = rnd.Next (50, 550);
 				if (tipo >= 6) {

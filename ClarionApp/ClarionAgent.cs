@@ -350,6 +350,34 @@ namespace ClarionApp
 				mind.updateLeaflet(n,l);
 				n++;
 			}
+
+
+            double menorDistanciaPorCor = double.MaxValue;
+            if (bestLeaflet != null)
+            {
+                
+                foreach(LeafletItem item in bestLeaflet.items)
+                {
+                    
+                    IEnumerable<Thing> joiasDaCor = listOfThings.Where(t =>
+                        t.CategoryId == Thing.CATEGORY_JEWEL &&
+                        !String.IsNullOrEmpty(t.Material.Color) &&
+                        t.Material.Color.IndexOf(item.itemKey, StringComparison.OrdinalIgnoreCase) >= 0);
+
+
+                    foreach (Thing joia in joiasDaCor)
+                    {
+                        if (joia.DistanceToCreature < menorDistanciaPorCor)
+                        {
+                            menorDistanciaPorCor = joia.DistanceToCreature;
+                        }
+                        System.Console.WriteLine("Joia da cor " + item.itemKey + " encontrada a distância: " + joia.DistanceToCreature);
+                    }
+
+                    System.Console.WriteLine("Cor: " + item.itemKey + " | Menor distância encontrada: " + menorDistanciaPorCor);
+                }
+
+            }
             return si;
         }
         #endregion
