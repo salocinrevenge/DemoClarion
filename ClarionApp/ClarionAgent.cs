@@ -268,15 +268,11 @@ namespace ClarionApp
 
                 double dx = bestJewel.X1 - creature.X1;
                 double dy = bestJewel.Y1 - creature.Y1;
-                double targetAngle = Math.Atan2(dy, dx);
+                
+                double dist = Math.Sqrt(dx * dx + dy * dy);
 
-
-                // current orientation (prad) is maintained in processSensoryInformation
-                double diff = targetAngle - prad;
-                while (diff > Math.PI) diff -= 2 * Math.PI;
-                while (diff <= -Math.PI) diff += 2 * Math.PI;
-                System.Console.WriteLine("Target Ray Jewel: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
-                return diff;
+                System.Console.WriteLine("Target Ray Jewel: " + dist + "\n");
+                return dist;
             }
             catch (Exception ex) {
                 System.Console.WriteLine("Error in GetNextJewelTheta. Returning 0.0. Exception: " + ex.Message + "\n");
@@ -314,15 +310,10 @@ namespace ClarionApp
 
                 double dx = bestFood.X1 - creature.X1;
                 double dy = bestFood.Y1 - creature.Y1;
-                double targetAngle = Math.Atan2(dy, dx);
+                double dist = Math.Sqrt(dx * dx + dy * dy);
 
-
-                // current orientation (prad) is maintained in processSensoryInformation
-                double diff = targetAngle - prad;
-                while (diff > Math.PI) diff -= 2 * Math.PI;
-                while (diff <= -Math.PI) diff += 2 * Math.PI;
-                System.Console.WriteLine("Target Ray Food: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
-                return diff;
+                System.Console.WriteLine("Target Ray Food: " + dist + "\n");
+                return dist;
             }
             catch (Exception ex) {
                 System.Console.WriteLine("Error in GetNextFoodRay. Returning 0.0. Exception: " + ex.Message + "\n");
@@ -337,11 +328,11 @@ namespace ClarionApp
 
         public void SetDirectionWalk(float value) 
         { 
-            // System.Console.WriteLine("SetDirectionWalk called with value: " + value + "\n"); 
+            System.Console.WriteLine("SetDirectionWalk called with value: " + value + "\n"); 
         }
         public void SetInteract(float value) 
         { 
-            // System.Console.WriteLine("SetInteract called with value: " + value + "\n"); 
+            System.Console.WriteLine("SetInteract called with value: " + value + "\n"); 
         }
 
         #endregion
@@ -422,11 +413,9 @@ namespace ClarionApp
 			Creature c = (Creature) listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First();
             creature = c;
             Fuel = c.Fuel;
-            System.Console.WriteLine("Fuel: " + Fuel + "\n");
 			int n = 0;
             int bestPagamento = 0;
 			foreach(Leaflet l in c.getLeaflets()) {
-                System.Console.WriteLine("Leaflet ID: " + l.leafletID + " payment: " + l.payment + " Tipo: " + l.items[0].itemKey + "Quantity: " +l.items[0].totalNumber + "\n");
                 if (l.payment > bestPagamento) {
                     bestPagamento = l.payment;
                     bestLeaflet = l;
@@ -448,7 +437,6 @@ namespace ClarionApp
                 foreach(LeafletItem item in bestLeaflet.items)
                 {
 
-                    System.Console.WriteLine("Item: " + item.itemKey + " | Required: " + item.totalNumber + " | Collected: " + item.collected + "\n");
                     if(item.totalNumber - item.collected <= 0) continue;
                     
                     IEnumerable<Thing> joiasDaCor = listOfThings.Where(t =>
@@ -464,7 +452,6 @@ namespace ClarionApp
                             menorDistanciaPorCor = joia.DistanceToCreature;
                             bestJewel = joia;
                         }
-                        System.Console.WriteLine("Joia da cor " + item.itemKey + " encontrada a distância: " + joia.DistanceToCreature);
                     }
                     if(bestJewel == null) {
                         IEnumerable<Thing> deliverList = listOfThings.Where(t =>
@@ -499,11 +486,9 @@ namespace ClarionApp
                             menorDistanciaFood = comida.DistanceToCreature;
                             bestFood = comida;
                         }
-                        System.Console.WriteLine("Comida encontrada a distância: " + comida.DistanceToCreature);
                     }
                     
 
-                    System.Console.WriteLine("Cor: " + item.itemKey + " | Menor distância encontrada: " + menorDistanciaPorCor);
                 }
 
             }
@@ -546,7 +531,8 @@ namespace ClarionApp
                     //Choose an action
                     ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction(si);
 
-                    System.Console.WriteLine("Best leaflet payment: " + bestLeaflet.payment + "\n");
+
+                    System.Console.WriteLine("Chosen Action: " + chosen.LabelAsIComparable.ToString() + "\n");
 
                     // Get the selected action
                     String actionLabel = chosen.LabelAsIComparable.ToString();
@@ -554,6 +540,7 @@ namespace ClarionApp
 
                     // Call the output event handler
                     processSelectedAction(actionType);
+
 
                     // CurrentAgent.NACS does not expose GetOutput; use default values or implement the correct retrieval method here.
                     float directionWalk = 0f;
