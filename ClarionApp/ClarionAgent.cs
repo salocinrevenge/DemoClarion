@@ -99,6 +99,11 @@ namespace ClarionApp
         private ExternalActionChunk outputInteract;
         #endregion
 
+        private Thing bestJewel = null;
+        private Thing bestFood = null;
+
+        private double Fuel = 0;
+
         #endregion
 
         #region Constructor
@@ -339,6 +344,8 @@ namespace ClarionApp
 
 			//Console.WriteLine(sensorialInformation);
 			Creature c = (Creature) listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First();
+            Fuel = c.Fuel;
+            System.Console.WriteLine("Fuel: " + Fuel + "\n");
 			int n = 0;
             int bestPagamento = 0;
 			foreach(Leaflet l in c.getLeaflets()) {
@@ -353,6 +360,8 @@ namespace ClarionApp
 
 
             double menorDistanciaPorCor = double.MaxValue;
+            double menorDistanciaFood = double.MaxValue;
+
             if (bestLeaflet != null)
             {
                 
@@ -373,9 +382,25 @@ namespace ClarionApp
                         if (joia.DistanceToCreature < menorDistanciaPorCor)
                         {
                             menorDistanciaPorCor = joia.DistanceToCreature;
+                            bestJewel = joia;
                         }
                         System.Console.WriteLine("Joia da cor " + item.itemKey + " encontrada a distância: " + joia.DistanceToCreature);
                     }
+
+
+                    IEnumerable<Thing> comidasVisivel = listOfThings.Where(t =>
+                        (t.CategoryId == Thing.CATEGORY_FOOD || t.CategoryId == Thing.categoryPFOOD || t.CategoryId == Thing.CATEGORY_NPFOOD));
+
+                    foreach (Thing comida in comidasVisivel)
+                    {
+                        if (comida.DistanceToCreature < menorDistanciaFood)
+                        {
+                            menorDistanciaFood = comida.DistanceToCreature;
+                            bestFood = comida;
+                        }
+                        System.Console.WriteLine("Comida encontrada a distância: " + comida.DistanceToCreature);
+                    }
+                    
 
                     System.Console.WriteLine("Cor: " + item.itemKey + " | Menor distância encontrada: " + menorDistanciaPorCor);
                 }
