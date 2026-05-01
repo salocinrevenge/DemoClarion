@@ -358,6 +358,9 @@ namespace ClarionApp
                 
                 foreach(LeafletItem item in bestLeaflet.items)
                 {
+
+                    System.Console.WriteLine("Item: " + item.itemKey + " | Required: " + item.totalNumber + " | Collected: " + item.collected + "\n");
+                    if(item.totalNumber - item.collected <= 0) continue;
                     
                     IEnumerable<Thing> joiasDaCor = listOfThings.Where(t =>
                         t.CategoryId == Thing.CATEGORY_JEWEL &&
