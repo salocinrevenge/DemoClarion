@@ -99,6 +99,7 @@ namespace ClarionApp
         private ExternalActionChunk outputInteract;
         #endregion
 
+        private SimplifiedQBPNetwork bottomLevelNetwork = null;
         private Thing bestJewel = null;
         private Thing bestFood = null;
 
@@ -134,18 +135,18 @@ namespace ClarionApp
             outputDirectionWalk = World.NewExternalActionChunk("DirectionWalk");
             outputInteract = World.NewExternalActionChunk("Interact");
 
-            SimplifiedQBPNetwork net = AgentInitializer.InitializeImplicitDecisionNetwork(CurrentAgent, SimplifiedQBPNetwork.Factory);
-            net.Input.Add(inputNextJewelTheta);
-            net.Input.Add(inputNextJewelRay);
-            net.Input.Add(inputNextFoodTheta);
-            net.Input.Add(inputNextFoodRay);
-            net.Input.Add(inputFuel);
+            bottomLevelNetwork = AgentInitializer.InitializeImplicitDecisionNetwork(CurrentAgent, SimplifiedQBPNetwork.Factory);
+            bottomLevelNetwork.Input.Add(inputNextJewelTheta);
+            bottomLevelNetwork.Input.Add(inputNextJewelRay);
+            bottomLevelNetwork.Input.Add(inputNextFoodTheta);
+            bottomLevelNetwork.Input.Add(inputNextFoodRay);
+            bottomLevelNetwork.Input.Add(inputFuel);
 
-            net.Output.Add(outputDirectionWalk);
-            net.Output.Add(outputInteract);
-            CurrentAgent.Commit(net);
+            bottomLevelNetwork.Output.Add(outputDirectionWalk);
+            bottomLevelNetwork.Output.Add(outputInteract);
+            CurrentAgent.Commit(bottomLevelNetwork);
 
-            net.Parameters.LEARNING_RATE = 1;
+            bottomLevelNetwork.Parameters.LEARNING_RATE = 1;
             CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
 
             //Create thread to simulation
@@ -214,6 +215,7 @@ namespace ClarionApp
 					// Do nothing as the own value says
 					break;
 				case CreatureActions.ROTATE_CLOCKWISE:
+                System.Console.WriteLine("ROTATE_CLOCKWISE eu nao devia fazer isso \n");
 					worldServer.SendSetAngle(creatureId, 2, -2, 2);
                     // System.Console.WriteLine("Rotating Clockwise ...\n");
                     // List<Thing> thingsInVision = worldServer.GetWorldEntities();
@@ -357,6 +359,7 @@ namespace ClarionApp
         /// </summary>
         private void SetupACS() // EXPLAIN: executado uma vez quando o agente é criado
         {
+            /*
             // Create Rule to avoid collision with wall
             SupportCalculator avoidCollisionWallSupportCalculator = FixedRuleToAvoidCollisionWall;
             FixedRule ruleAvoidCollisionWall = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputRotateClockwise, avoidCollisionWallSupportCalculator);
@@ -370,6 +373,7 @@ namespace ClarionApp
             
             // Commit this rule to Agent (in the ACS)
             CurrentAgent.Commit(ruleGoAhead);
+            */
 
             // Disable Rule Refinement
             CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
@@ -381,9 +385,9 @@ namespace ClarionApp
             CurrentAgent.ACS.Parameters.LEVEL_SELECTION_OPTION = ActionCenteredSubsystem.LevelSelectionOptions.FIXED;
 
             // Define Probabilistic values
-            CurrentAgent.ACS.Parameters.FIXED_FR_LEVEL_SELECTION_MEASURE = 1;
+            CurrentAgent.ACS.Parameters.FIXED_FR_LEVEL_SELECTION_MEASURE = 0;
             CurrentAgent.ACS.Parameters.FIXED_IRL_LEVEL_SELECTION_MEASURE = 0;
-            CurrentAgent.ACS.Parameters.FIXED_BL_LEVEL_SELECTION_MEASURE = 0;
+            CurrentAgent.ACS.Parameters.FIXED_BL_LEVEL_SELECTION_MEASURE = 1;
             CurrentAgent.ACS.Parameters.FIXED_RER_LEVEL_SELECTION_MEASURE = 0;
         }
 
@@ -404,8 +408,8 @@ namespace ClarionApp
 
             si.Add(inputNextJewelTheta, GetNextJewelTheta());
             si.Add(inputNextJewelRay, GetNextJewelRay());
-            si.Add(inputNextFoodTheta, GetNextFoodTheta());
-            si.Add(inputNextFoodRay, GetNextFoodRay());
+            si.Add(inputNextFoodTheta, GetNextJewelTheta());
+            si.Add(inputNextFoodRay, GetNextJewelRay());
             si.Add(inputFuel, GetFuel());
 
 
@@ -528,6 +532,27 @@ namespace ClarionApp
                     //Perceive the sensory information
                     CurrentAgent.Perceive(si);
 
+                    // Extrai as saídas da rede neural (NACS)
+                    double directionWalk = 0;
+                    double interact = 0;
+
+                    if (bottomLevelNetwork != null)
+                    {
+                        ActivationCollection outputActivations = bottomLevelNetwork.Output;
+                        if (outputActivations.Contains(outputDirectionWalk))
+                        {
+                            directionWalk = outputActivations[outputDirectionWalk];
+                        }
+                        if (outputActivations.Contains(outputInteract))
+                        {
+                            interact = outputActivations[outputInteract];
+                        }
+                    }
+
+                    // Processa as ações contínuas com base nas saídas da rede
+                    processContinuousActions(directionWalk, interact);
+
+                    /*
                     //Choose an action
                     ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction(si);
 
@@ -548,6 +573,7 @@ namespace ClarionApp
 
                     SetDirectionWalk(directionWalk);
                     SetInteract(interact);
+                    */
 
                     // Increment the number of cognitive cycles
                     CurrentCognitiveCycle++;
@@ -567,6 +593,45 @@ namespace ClarionApp
 			}
         }
         #endregion
+
+        private void processContinuousActions(double directionWalk, double interact)
+        {
+
+            System.Console.WriteLine("Processing Continuous Actions ... DirectionWalk: " + directionWalk + " | Interact: " + interact + "\n");
+            // Lógica de Interação
+            if (interact > 0)
+            {
+                System.Console.WriteLine("INTERACT \n");
+                // se bestFood for uma comida e estiver com distancia menor que 50, interage (come a comida)
+                if (bestFood != null && bestFood.CategoryId != Thing.CATEGORY_DeliverySPOT && bestFood.DistanceToCreature <= 50)
+                {
+                    worldServer.SendEatIt(creatureId, bestFood.Name);
+                    System.Console.WriteLine("Eating Food: " + bestFood.Name + "\n");
+                }
+                // se bestJewel for uma joia e estiver com distancia menor que 50, interage (pega a joia)
+                else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_JEWEL && bestJewel.DistanceToCreature <= 50)
+                {
+                    worldServer.SendSackIt(creatureId, bestJewel.Name);
+                    System.Console.WriteLine("Picking Up Jewel: " + bestJewel.Name + "\n");
+                }
+                else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && bestJewel.DistanceToCreature <= 50)
+                {
+                    worldServer.deliverLeaflet(creatureId, bestLeaflet.leafletID.ToString());
+                    System.Console.WriteLine("Delivering Items at Delivery Spot: " + bestJewel.Name + "\n");
+                }
+            }
+
+            
+            // Discretizado pq o simulador n consegue fazer intermediarios ;-;
+            if(directionWalk > 0.5) {
+                worldServer.SendSetAngle(creatureId, -2, 2, prad);
+            } else if (directionWalk < -0.5) {
+                worldServer.SendSetAngle(creatureId, 2, -2, prad);
+            } else {
+                worldServer.SendSetAngle(creatureId, 2, 2, prad);
+            }
+
+        }
 
     }
 }
