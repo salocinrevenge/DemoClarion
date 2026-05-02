@@ -107,6 +107,15 @@ namespace ClarionApp
 
         private double Fuel = 0;
 
+        // Training state
+        private double lastJewelTheta = 0;
+        private double lastJewelRay = 0;
+        private double lastFoodTheta = 0;
+        private double lastFoodRay = 0;
+        private DateTime lastCollectionTime;
+        private int lastSackCount = 0;
+        private double lastFuel = 0;
+
         #endregion
 
         #region Constructor
@@ -119,6 +128,7 @@ namespace ClarionApp
 			mind.Show ();
 			creatureId = creature_ID;
 			creatureName = creature_Name;
+            lastCollectionTime = DateTime.Now;
 
             // Initialize Input Information
             inputWallAhead = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, DIMENSION_WALL_AHEAD);
@@ -146,7 +156,7 @@ namespace ClarionApp
             bottomLevelNetwork.Output.Add(outputInteract);
             CurrentAgent.Commit(bottomLevelNetwork);
 
-            bottomLevelNetwork.Parameters.LEARNING_RATE = 1;
+            bottomLevelNetwork.Parameters.LEARNING_RATE = 0.1; // Taxa de aprendizado
             CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
 
             //Create thread to simulation
@@ -186,6 +196,11 @@ namespace ClarionApp
             {
                 CurrentAgent.Die();
             }
+        }
+
+		public bool IsRunning()
+        {
+            return runThread != null && runThread.IsAlive;
         }
 
 		IList<Thing> processSensoryInformation()
@@ -550,30 +565,10 @@ namespace ClarionApp
                     }
 
                     // Processa as ações contínuas com base nas saídas da rede
-                    processContinuousActions(directionWalk, interact);
+                    bool interactionOccurred = processContinuousActions(directionWalk, interact);
 
-                    /*
-                    //Choose an action
-                    ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction(si);
-
-
-                    System.Console.WriteLine("Chosen Action: " + chosen.LabelAsIComparable.ToString() + "\n");
-
-                    // Get the selected action
-                    String actionLabel = chosen.LabelAsIComparable.ToString();
-                    CreatureActions actionType = (CreatureActions)Enum.Parse(typeof(CreatureActions), actionLabel, true);
-
-                    // Call the output event handler
-                    processSelectedAction(actionType);
-
-
-                    // CurrentAgent.NACS does not expose GetOutput; use default values or implement the correct retrieval method here.
-                    float directionWalk = 0f;
-                    float interact = 0f;
-
-                    SetDirectionWalk(directionWalk);
-                    SetInteract(interact);
-                    */
+                    // Lógica de Reforço
+                    CalculateReinforcement(si, interactionOccurred, interact);
 
                     // Increment the number of cognitive cycles
                     CurrentCognitiveCycle++;
@@ -594,9 +589,9 @@ namespace ClarionApp
         }
         #endregion
 
-        private void processContinuousActions(double directionWalk, double interact)
+        private bool processContinuousActions(double directionWalk, double interact)
         {
-
+            bool interactionResult = false;
             System.Console.WriteLine("Processing Continuous Actions ... DirectionWalk: " + directionWalk + " | Interact: " + interact + "\n");
             // Lógica de Interação
             if (interact > 0)
@@ -607,17 +602,20 @@ namespace ClarionApp
                 {
                     worldServer.SendEatIt(creatureId, bestFood.Name);
                     System.Console.WriteLine("Eating Food: " + bestFood.Name + "\n");
+                    interactionResult = true;
                 }
                 // se bestJewel for uma joia e estiver com distancia menor que 50, interage (pega a joia)
                 else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_JEWEL && bestJewel.DistanceToCreature <= 50)
                 {
                     worldServer.SendSackIt(creatureId, bestJewel.Name);
                     System.Console.WriteLine("Picking Up Jewel: " + bestJewel.Name + "\n");
+                    interactionResult = true;
                 }
                 else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && bestJewel.DistanceToCreature <= 50)
                 {
                     worldServer.deliverLeaflet(creatureId, bestLeaflet.leafletID.ToString());
                     System.Console.WriteLine("Delivering Items at Delivery Spot: " + bestJewel.Name + "\n");
+                    interactionResult = true;
                 }
             }
 
@@ -630,7 +628,95 @@ namespace ClarionApp
             } else {
                 worldServer.SendSetAngle(creatureId, 2, 2, prad);
             }
+            return interactionResult;
+        }
 
+
+        private void CalculateReinforcement(SensoryInformation si, bool interactionOccurred, double interact)
+        {
+            double reinforcement = 0;
+
+            // Regras de reforço baseadas no Fuel
+            if (Fuel > 500)
+            {
+                if (Math.Abs(GetNextJewelTheta()) < Math.Abs(lastJewelTheta) || GetNextJewelRay() < lastJewelRay)
+                {
+                    reinforcement += 1;
+                }
+                else
+                {
+                    reinforcement -= 1;
+                }
+            }
+            else if (Fuel < 300)
+            {
+                if (Math.Abs(GetNextFoodTheta()) < Math.Abs(lastFoodTheta) || GetNextFoodRay() < lastFoodRay)
+                {
+                    reinforcement += 1;
+                }
+                else
+                {
+                    reinforcement -= 1;
+                }
+            }
+
+            // Regras de reforço baseadas em interações
+            if (interactionOccurred)
+            {
+                // Comeu comida
+                if (Fuel > lastFuel)
+                {
+                    reinforcement += 1;
+                    lastCollectionTime = DateTime.Now;
+                }
+                // Pegou joia
+                Sack currentSack = worldServer.SendGetSack("0");
+                if (currentSack.n_crystal > lastSackCount)
+                {
+                    reinforcement += 1;
+                    lastCollectionTime = DateTime.Now;
+                    lastSackCount = currentSack.n_crystal;
+                }
+                // Entregou leaflet
+                if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && bestJewel.DistanceToCreature <= 50)
+                {
+                    reinforcement += 10;
+                    EndEpisode();
+                }
+            }
+            else if (interact > 0) // Tentou interagir e falhou
+            {
+                reinforcement -= 1;
+            }
+
+            // Aplicar o reforço
+            if (reinforcement != 0)
+            {
+                CurrentAgent.ReceiveFeedback(si, reinforcement);
+                Console.WriteLine($"[REINFORCEMENT] Agent received feedback: {reinforcement}");
+            }
+
+            // Atualizar valores para o próximo ciclo
+            lastJewelTheta = GetNextJewelTheta();
+            lastJewelRay = GetNextJewelRay();
+            lastFoodTheta = GetNextFoodTheta();
+            lastFoodRay = GetNextFoodRay();
+            lastFuel = Fuel;
+
+            // Verificar condições de fim de episódio
+            if (Fuel <= 0 || (DateTime.Now - lastCollectionTime).TotalSeconds > 10)
+            {
+                EndEpisode();
+            }
+        }
+
+        public void EndEpisode()
+        {
+            Console.WriteLine("[TRAINING] Episode finished.");
+            // Aqui você pode adicionar lógica para resetar o estado do agente/ambiente para um novo episódio
+            // Por exemplo, resetar a posição do agente, limpar o inventário, etc.
+            // Por enquanto, vamos apenas parar o ciclo cognitivo para este exemplo.
+            MaxNumberOfCognitiveCycles = CurrentCognitiveCycle; // Para o loop
         }
 
     }

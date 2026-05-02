@@ -34,25 +34,7 @@ namespace ClarionApp
                 if (ws != null && ws.IsConnected)
                 {
                     Console.Out.WriteLine ("[SUCCESS] " + message + "\n");
-					ws.SendWorldReset();
-                    ws.NewCreature(400, 200, 0, out creatureId, out creatureName);
-					ws.SendCreateLeaflet();
-                    ws.NewBrick(4, 747, 2, 800, 567);
-                    ws.NewBrick(4, 50, -4, 747, 47);
-                    ws.NewBrick(4, 49, 562, 796, 599);
-                    ws.NewBrick(4, -2, 6, 50, 599);
-					Console.Out.WriteLine ("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n");
-
-					if (!String.IsNullOrWhiteSpace(creatureId))
-                    {
-						ws.SendStartCamera(creatureId); // O que isso faz??
-                        ws.SendStartCreature(creatureId);
-                    }
-
-
-					Console.Out.WriteLine("Creature created with name: " + creatureId + "\n");
-					agent = new ClarionAgent(ws,creatureId,creatureName);
-					agent.Run ();
+					ResetEpisode();
 					Console.Out.WriteLine("Running Simulation ...\n");
 					Console.Out.WriteLine ("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n");
 				}
@@ -93,8 +75,6 @@ namespace ClarionApp
 			DateTime timer = DateTime.Now;
 			Random rnd = new Random ();
 
-
-			ws.createDeliverySpot(500,500);
 			spawnThings();
 
 			while (true) {
@@ -113,6 +93,31 @@ namespace ClarionApp
 				}
 				Thread.Sleep(100); // Pequena pausa para evitar uso excessivo da CPU
 			}
+		}
+
+		private void ResetEpisode()
+		{
+			ws.SendWorldReset();
+			ws.NewCreature(400, 200, 0, out creatureId, out creatureName);
+			ws.SendCreateLeaflet();
+			ws.NewBrick(4, 747, 2, 800, 567);
+			ws.NewBrick(4, 50, -4, 747, 47);
+			ws.NewBrick(4, 49, 562, 796, 599);
+			ws.NewBrick(4, -2, 6, 50, 599);
+			ws.createDeliverySpot(500,500);
+			Console.Out.WriteLine ("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n");
+
+			if (!String.IsNullOrWhiteSpace(creatureId))
+			{
+				ws.SendStartCamera(creatureId); // O que isso faz??
+				ws.SendStartCreature(creatureId);
+			}
+
+
+			Console.Out.WriteLine("Creature created with name: " + creatureId + "\n");
+			agent = new ClarionAgent(ws,creatureId,creatureName);
+			agent.Run ();
+
 		}
 
 
