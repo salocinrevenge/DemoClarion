@@ -524,10 +524,10 @@ namespace ClarionApp
         private void interact()
         {
             // se bestFood for uma comida e estiver com distancia menor que 50, interage (come a comida)
-            if (bestFood != null && bestFood.CategoryId == Thing.CATEGORY_FOOD && DistanceTo(bestFood) <= 50)
+            if (bestFood != null && (bestFood.CategoryId == Thing.CATEGORY_FOOD || bestFood.CategoryId == Thing.categoryPFOOD || bestFood.CategoryId == Thing.CATEGORY_NPFOOD) && DistanceTo(bestFood) <= 50)
             {
-                worldServer.SendEatIt(creatureId, bestFood.Name);
                 System.Console.WriteLine("Eating Food: " + bestFood.Name + "\n");
+                worldServer.SendEatIt(creatureId, bestFood.Name);
             }
             // se bestJewel for uma joia e estiver com distancia menor que 50, interage (pega a joia)
             else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_JEWEL && DistanceTo(bestJewel) <= 50)
