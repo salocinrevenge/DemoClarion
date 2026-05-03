@@ -21,8 +21,11 @@ namespace ClarionApp
     public enum CreatureActions
     {
         DO_NOTHING,
-        ROTATE_CLOCKWISE,
-        GO_AHEAD
+        GO_TO_FOOD,
+        GO_TO_JEWEL,
+        INTERACT,
+        EXPLORE,
+        GO_TO_DELIVERY_SPOT
     }
 
     public class ClarionAgent
@@ -43,6 +46,8 @@ namespace ClarionApp
 
         #region Properties
 		public MindViewer mind;
+
+        private bool Searching_food = false;
 		String creatureId = String.Empty;
 		String creatureName = String.Empty;
         #region Simulation
@@ -93,13 +98,25 @@ namespace ClarionApp
         /// <summary>
         /// Output action that makes the agent go ahead
         /// </summary>
-		private ExternalActionChunk outputGoAhead;
-
-        private ExternalActionChunk outputDirectionWalk;
+		private ExternalActionChunk outputGoToFood;
+        /// <summary>
+        /// Output action that makes the agent go ahead
+        /// </summary>
+		private ExternalActionChunk outputGoToJewel;
+        /// <summary>
+        /// Output action that makes the agent go ahead
+        /// </summary>
         private ExternalActionChunk outputInteract;
+        /// <summary>
+        /// Output action that makes the agent go ahead
+        /// </summary>
+        private ExternalActionChunk outputExplore;
+
+        private ExternalActionChunk outputGoToDeliverySpot;
         #endregion
 
         private SimplifiedQBPNetwork bottomLevelNetwork = null;
+        private Thing deliverSpotLocation = null;
         private Thing bestJewel = null;
         private Thing bestFood = null;
 
@@ -139,25 +156,11 @@ namespace ClarionApp
             inputFuel = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, "Fuel");
 
             // Initialize Output actions
-            outputRotateClockwise = World.NewExternalActionChunk(CreatureActions.ROTATE_CLOCKWISE.ToString());
-            outputGoAhead = World.NewExternalActionChunk(CreatureActions.GO_AHEAD.ToString());
-
-            outputDirectionWalk = World.NewExternalActionChunk("DirectionWalk");
-            outputInteract = World.NewExternalActionChunk("Interact");
-
-            bottomLevelNetwork = AgentInitializer.InitializeImplicitDecisionNetwork(CurrentAgent, SimplifiedQBPNetwork.Factory);
-            bottomLevelNetwork.Input.Add(inputNextJewelTheta);
-            bottomLevelNetwork.Input.Add(inputNextJewelRay);
-            bottomLevelNetwork.Input.Add(inputNextFoodTheta);
-            bottomLevelNetwork.Input.Add(inputNextFoodRay);
-            bottomLevelNetwork.Input.Add(inputFuel);
-
-            bottomLevelNetwork.Output.Add(outputDirectionWalk);
-            bottomLevelNetwork.Output.Add(outputInteract);
-            CurrentAgent.Commit(bottomLevelNetwork);
-
-            bottomLevelNetwork.Parameters.LEARNING_RATE = 0.1; // Taxa de aprendizado
-            CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
+            outputGoToFood = World.NewExternalActionChunk(CreatureActions.GO_TO_FOOD.ToString());
+            outputGoToJewel = World.NewExternalActionChunk(CreatureActions.GO_TO_JEWEL.ToString());
+            outputInteract = World.NewExternalActionChunk(CreatureActions.INTERACT.ToString());
+            outputExplore = World.NewExternalActionChunk(CreatureActions.EXPLORE.ToString());
+            outputGoToDeliverySpot = World.NewExternalActionChunk(CreatureActions.GO_TO_DELIVERY_SPOT.ToString());
 
             //Create thread to simulation
             runThread = new Thread(CognitiveCycle);
@@ -220,32 +223,49 @@ namespace ClarionApp
 			return response;
 		}
 
-		void processSelectedAction(CreatureActions externalAction)
+		void processSelectedAction(ExternalActionChunk externalAction)
 		{   Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
 			if (worldServer != null && worldServer.IsConnected)
 			{
-				switch (externalAction)
+                CreatureActions action = (CreatureActions)Enum.Parse(typeof(CreatureActions), externalAction.LabelAsIComparable.ToString());
+				switch (action)
 				{
 				case CreatureActions.DO_NOTHING:
 					// Do nothing as the own value says
 					break;
-				case CreatureActions.ROTATE_CLOCKWISE:
-                System.Console.WriteLine("ROTATE_CLOCKWISE eu nao devia fazer isso \n");
-					worldServer.SendSetAngle(creatureId, 2, -2, 2);
-                    // System.Console.WriteLine("Rotating Clockwise ...\n");
-                    // List<Thing> thingsInVision = worldServer.GetWorldEntities();
-                    // System.Console.WriteLine("Things in vision count: " + thingsInVision.Count + "\n");
-                    // foreach (Thing t in thingsInVision)
-                    // {
-                    //     if (t.CategoryId == Thing.CATEGORY_JEWEL)
-                    //     {
-                    //         System.Console.WriteLine("Thing in vision: " + t.Name + " - Category: " + t.CategoryId + " X: " + t.X1 + " Y: " + t.Y1 + "\n");
-                    //     }
-                    // }
+                case CreatureActions.GO_TO_FOOD:
+                    if (bestFood != null)
+                    {
+                        Console.WriteLine("Moving towards Food: " + bestFood.Name + "\n");
+                        worldServer.SendSetGoTo(creatureId, 3, 3, bestFood.X1, bestFood.Y1);
+                    }
+                    break;
+                case CreatureActions.GO_TO_JEWEL:
+                    if (bestJewel != null)
+                    {
+                        Console.WriteLine("Moving towards Jewel: " + bestJewel.Name + "\n");
+                        worldServer.SendSetGoTo(creatureId, 3, 3, bestJewel.X1, bestJewel.Y1);
+                    }
+                    break;
+                case CreatureActions.INTERACT:
+                    interact();
+                    break;
+                case CreatureActions.EXPLORE:
+                    Console.WriteLine("No specific action taken. Rotating to explore...\n");
+                    worldServer.SendSetAngle(creatureId, 2, -2, 2);
 					break;
-				case CreatureActions.GO_AHEAD:
-					worldServer.SendSetAngle(creatureId, 1, 1, prad);
-					break;
+                case CreatureActions.GO_TO_DELIVERY_SPOT:
+                    if (deliverSpotLocation != null)
+                    {
+                        Console.WriteLine("Moving towards Delivery Spot: " + deliverSpotLocation.Name + "\n");
+                        worldServer.SendSetGoTo(creatureId, 3, 3, deliverSpotLocation.X1, deliverSpotLocation.Y1);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Moving towards 500 500: " + bestJewel.Name + "\n");
+                        worldServer.SendSetGoTo(creatureId, 3, 3, 500, 500);
+                    }
+                    break;
 				default:
 					break;
 				}
@@ -268,7 +288,6 @@ namespace ClarionApp
                 double diff = targetAngle - prad;
                 while (diff > Math.PI) diff -= 2 * Math.PI;
                 while (diff <= -Math.PI) diff += 2 * Math.PI;
-                System.Console.WriteLine("Target Angle Jewel: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
                 return diff;
             }
             catch (Exception ex) {
@@ -339,7 +358,6 @@ namespace ClarionApp
         }
         public double GetFuel() 
         { 
-            System.Console.WriteLine("GetFuel called Fuel: " + Fuel + "\n");
             return Fuel; 
         }
 
@@ -374,21 +392,76 @@ namespace ClarionApp
         /// </summary>
         private void SetupACS() // EXPLAIN: executado uma vez quando o agente é criado
         {
-            /*
-            // Create Rule to avoid collision with wall
-            SupportCalculator avoidCollisionWallSupportCalculator = FixedRuleToAvoidCollisionWall;
-            FixedRule ruleAvoidCollisionWall = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputRotateClockwise, avoidCollisionWallSupportCalculator);
-
-            // Commit this rule to Agent (in the ACS)
-            CurrentAgent.Commit(ruleAvoidCollisionWall);
-
-            // Create Colission To Go Ahead
-            SupportCalculator goAheadSupportCalculator = FixedRuleToGoAhead;
-            FixedRule ruleGoAhead = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputGoAhead, goAheadSupportCalculator);
             
-            // Commit this rule to Agent (in the ACS)
-            CurrentAgent.Commit(ruleGoAhead);
-            */
+            // Rule to go to food when fuel is low
+            SupportCalculator goToFoodSupportCalculator = (currentInput, target) =>
+            {
+                if (Searching_food && bestFood != null && bestFood.DistanceToCreature >= 50)
+                {
+                    return 1.0;
+                }
+                return 0.0;
+            };
+            FixedRule ruleGoToFood = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputGoToFood, goToFoodSupportCalculator);
+            CurrentAgent.Commit(ruleGoToFood);
+
+            // Rule to go to jewel when fuel is not low
+            SupportCalculator goToJewelSupportCalculator = (currentInput, target) =>
+            {
+                if (!Searching_food && bestJewel != null && bestJewel.DistanceToCreature >= 50)
+                {
+                    return 1.0;
+                }
+                return 0.0;
+            };
+            FixedRule ruleGoToJewel = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputGoToJewel, goToJewelSupportCalculator);
+            CurrentAgent.Commit(ruleGoToJewel);
+
+            // Rule to interact when close to an object
+            SupportCalculator interactSupportCalculator = (currentInput, target) =>
+            {
+                bool canInteractWithFood = Searching_food && bestFood != null && bestFood.DistanceToCreature < 50;
+                bool canInteractWithJewel = !Searching_food && bestJewel != null && bestJewel.DistanceToCreature < 50;
+                if (canInteractWithFood || canInteractWithJewel)
+                {
+                    return 1.0;
+                }
+                return 0.0;
+            };
+            FixedRule ruleInteract = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputInteract, interactSupportCalculator);
+            CurrentAgent.Commit(ruleInteract);
+
+            // Rule to explore when no other action is taken
+            SupportCalculator exploreSupportCalculator = (currentInput, target) =>
+            {
+                // This rule has a lower priority and will be chosen if others don't apply.
+                // We can return a small constant value to make it a default action.
+                return 0.1;
+            };
+            FixedRule ruleExplore = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputExplore, exploreSupportCalculator);
+            CurrentAgent.Commit(ruleExplore);
+
+            // Rule to go to delivery spot
+            SupportCalculator goToDeliverySpotSupportCalculator = (currentInput, target) =>
+            {
+                int n_joias_faltantes = 0;
+                if (bestLeaflet != null)
+                {
+                    foreach (LeafletItem li in bestLeaflet.items)
+                    {
+                        n_joias_faltantes += (li.totalNumber - li.collected);
+                    }
+                }
+
+                if (!Searching_food && n_joias_faltantes == 0 && deliverSpotLocation != null && deliverSpotLocation.DistanceToCreature >= 50)
+                {
+                    return 1.0;
+                }
+                return 0.0;
+            };
+            FixedRule ruleGoToDeliverySpot = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputGoToDeliverySpot, goToDeliverySpotSupportCalculator);
+            CurrentAgent.Commit(ruleGoToDeliverySpot);
+            
 
             // Disable Rule Refinement
             CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
@@ -400,9 +473,9 @@ namespace ClarionApp
             CurrentAgent.ACS.Parameters.LEVEL_SELECTION_OPTION = ActionCenteredSubsystem.LevelSelectionOptions.FIXED;
 
             // Define Probabilistic values
-            CurrentAgent.ACS.Parameters.FIXED_FR_LEVEL_SELECTION_MEASURE = 0;
+            CurrentAgent.ACS.Parameters.FIXED_FR_LEVEL_SELECTION_MEASURE = 1;
             CurrentAgent.ACS.Parameters.FIXED_IRL_LEVEL_SELECTION_MEASURE = 0;
-            CurrentAgent.ACS.Parameters.FIXED_BL_LEVEL_SELECTION_MEASURE = 1;
+            CurrentAgent.ACS.Parameters.FIXED_BL_LEVEL_SELECTION_MEASURE = 0;
             CurrentAgent.ACS.Parameters.FIXED_RER_LEVEL_SELECTION_MEASURE = 0;
         }
 
@@ -477,19 +550,26 @@ namespace ClarionApp
                         t.CategoryId == Thing.CATEGORY_DeliverySPOT);
                         foreach (Thing deliverSpot in deliverList)
                         {
-                            bestJewel = deliverSpot;
+                            deliverSpotLocation = deliverSpot;
                         }
 
-                        if (bestJewel == null) {
+                    int n_joias_faltantes = 0;
+                    foreach (LeafletItem li in bestLeaflet.items) {
+                        n_joias_faltantes += (li.totalNumber - li.collected);
+                    }
+                    System.Console.WriteLine("Número de joias faltantes: " + n_joias_faltantes + "\n");
 
-                            bestJewel = new Thing() {
-                                Name = "DeliverySPOT",
-                                CategoryId = Thing.CATEGORY_DeliverySPOT,
-                                DistanceToCreature = double.MaxValue,
-                                X1 = 500,
-                                Y1 = 500
-                            };
-                        }
+
+                    if (bestJewel == null && n_joias_faltantes == 0) {
+
+                        bestJewel = new Thing() {
+                            Name = "DeliverySPOT",
+                            CategoryId = Thing.CATEGORY_DeliverySPOT,
+                            DistanceToCreature = double.MaxValue,
+                            X1 = 500,
+                            Y1 = 500
+                        };
+                    }
                     }
 
 
@@ -506,10 +586,15 @@ namespace ClarionApp
                             bestFood = comida;
                         }
                     }
+
                     
 
                 }
 
+            }
+            else
+            {
+                System.Console.WriteLine("No leaflet found in creature's inventory.\n");
             }
             return si;
         }
@@ -529,6 +614,32 @@ namespace ClarionApp
         }
         #endregion
 
+        private void interact()
+        {
+            // se bestFood for uma comida e estiver com distancia menor que 50, interage (come a comida)
+            if (bestFood != null && bestFood.CategoryId == Thing.CATEGORY_FOOD && bestFood.DistanceToCreature <= 50)
+            {
+                worldServer.SendEatIt(creatureId, bestFood.Name);
+                System.Console.WriteLine("Eating Food: " + bestFood.Name + "\n");
+            }
+            // se bestJewel for uma joia e estiver com distancia menor que 50, interage (pega a joia)
+            else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_JEWEL && bestJewel.DistanceToCreature <= 50)
+            {
+                worldServer.SendSackIt(creatureId, bestJewel.Name);
+                System.Console.WriteLine("Picking Up Jewel: " + bestJewel.Name + "\n");
+            }
+            else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && bestJewel.DistanceToCreature <= 50)
+            {
+                worldServer.deliverLeaflet(creatureId, bestLeaflet.leafletID.ToString());
+                System.Console.WriteLine("Delivering Items at Delivery Spot: " + bestJewel.Name + "\n");
+            }
+            else if (deliverSpotLocation != null && deliverSpotLocation.DistanceToCreature <= 50)
+            {
+                worldServer.deliverLeaflet(creatureId, bestLeaflet.leafletID.ToString());
+                System.Console.WriteLine("Delivering Items at Delivery Spot: " + deliverSpotLocation.Name + "\n");
+            }
+        }
+
         #region Run Thread Method
         private void CognitiveCycle(object obj)
         {
@@ -547,28 +658,62 @@ namespace ClarionApp
                     //Perceive the sensory information
                     CurrentAgent.Perceive(si);
 
-                    // Extrai as saídas da rede neural (NACS)
-                    double directionWalk = 0;
-                    double interact = 0;
-
-                    if (bottomLevelNetwork != null)
+                    // Regras explícitas
+                    if (GetFuel() > 600)
                     {
-                        ActivationCollection outputActivations = bottomLevelNetwork.Output;
-                        if (outputActivations.Contains(outputDirectionWalk))
-                        {
-                            directionWalk = outputActivations[outputDirectionWalk];
-                        }
-                        if (outputActivations.Contains(outputInteract))
-                        {
-                            interact = outputActivations[outputInteract];
-                        }
+                        Searching_food = false;
+                    }
+                    else if (GetFuel() < 300)
+                    {
+                        Searching_food = true;
                     }
 
-                    // Processa as ações contínuas com base nas saídas da rede
-                    bool interactionOccurred = processContinuousActions(directionWalk, interact);
+                    bool madeSomeAction = false;
 
-                    // Lógica de Reforço
-                    CalculateReinforcement(si, interactionOccurred, interact);
+                    if (Searching_food)
+                    {
+                        if (bestFood != null)
+                        {
+                            if (bestFood.DistanceToCreature < 50)
+                            {
+                                interact();
+                                madeSomeAction = true;
+                            }
+                            else
+                            {
+                                // Move towards food
+                                Console.WriteLine("Moving towards Food: " + bestFood.Name + " Position: (" + bestFood.X1 + ", " + bestFood.Y1 + ") My Position: (" + creature.X1 + ", " + creature.Y1 + ")\n");
+                                worldServer.SendSetGoTo(creatureId, 3, 3, bestFood.X1, bestFood.Y1);
+                                madeSomeAction = true;
+                            }
+                        }
+                    }
+                    else // Searching for jewel
+                    {
+                        System.Console.WriteLine("Searching for Jewel, bestJewel: " + (bestJewel != null ? bestJewel.Name : "null") + "\n");
+                        if (bestJewel != null)
+                        {
+                            if (bestJewel.DistanceToCreature < 50)
+                            {
+                                interact();
+                                madeSomeAction = true;
+                            }
+                            else
+                            {
+                                // Move towards jewel
+                                Console.WriteLine("Moving towards Jewel: " + bestJewel.Name + "\n");
+                                worldServer.SendSetGoTo(creatureId, 3, 3, bestJewel.X1, bestJewel.Y1);
+                                madeSomeAction = true;
+                            }
+                        }
+                    }
+                    if (!madeSomeAction)
+                    {
+                        // If no specific action was taken, just rotate to explore the environment
+                        Console.WriteLine("No specific action taken. Rotating to explore...\n");
+                        worldServer.SendSetAngle(creatureId, 2, -2, 2);
+                    }
+
 
                     // Increment the number of cognitive cycles
                     CurrentCognitiveCycle++;
@@ -588,136 +733,6 @@ namespace ClarionApp
 			}
         }
         #endregion
-
-        private bool processContinuousActions(double directionWalk, double interact)
-        {
-            bool interactionResult = false;
-            System.Console.WriteLine("Processing Continuous Actions ... DirectionWalk: " + directionWalk + " | Interact: " + interact + "\n");
-            // Lógica de Interação
-            if (interact > 0)
-            {
-                System.Console.WriteLine("INTERACT \n");
-                // se bestFood for uma comida e estiver com distancia menor que 50, interage (come a comida)
-                if (bestFood != null && bestFood.CategoryId != Thing.CATEGORY_DeliverySPOT && bestFood.DistanceToCreature <= 50)
-                {
-                    worldServer.SendEatIt(creatureId, bestFood.Name);
-                    System.Console.WriteLine("Eating Food: " + bestFood.Name + "\n");
-                    interactionResult = true;
-                }
-                // se bestJewel for uma joia e estiver com distancia menor que 50, interage (pega a joia)
-                else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_JEWEL && bestJewel.DistanceToCreature <= 50)
-                {
-                    worldServer.SendSackIt(creatureId, bestJewel.Name);
-                    System.Console.WriteLine("Picking Up Jewel: " + bestJewel.Name + "\n");
-                    interactionResult = true;
-                }
-                else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && bestJewel.DistanceToCreature <= 50)
-                {
-                    worldServer.deliverLeaflet(creatureId, bestLeaflet.leafletID.ToString());
-                    System.Console.WriteLine("Delivering Items at Delivery Spot: " + bestJewel.Name + "\n");
-                    interactionResult = true;
-                }
-            }
-
-            
-            // Discretizado pq o simulador n consegue fazer intermediarios ;-;
-            if(directionWalk > 0.5) {
-                worldServer.SendSetAngle(creatureId, -2, 2, prad);
-            } else if (directionWalk < -0.5) {
-                worldServer.SendSetAngle(creatureId, 2, -2, prad);
-            } else {
-                worldServer.SendSetAngle(creatureId, 2, 2, prad);
-            }
-            return interactionResult;
-        }
-
-
-        private void CalculateReinforcement(SensoryInformation si, bool interactionOccurred, double interact)
-        {
-            double reinforcement = 0;
-
-            // Regras de reforço baseadas no Fuel
-            if (Fuel > 500)
-            {
-                if (Math.Abs(GetNextJewelTheta()) < Math.Abs(lastJewelTheta) || GetNextJewelRay() < lastJewelRay)
-                {
-                    reinforcement += 1;
-                }
-                else
-                {
-                    reinforcement -= 1;
-                }
-            }
-            else if (Fuel < 300)
-            {
-                if (Math.Abs(GetNextFoodTheta()) < Math.Abs(lastFoodTheta) || GetNextFoodRay() < lastFoodRay)
-                {
-                    reinforcement += 1;
-                }
-                else
-                {
-                    reinforcement -= 1;
-                }
-            }
-
-            // Regras de reforço baseadas em interações
-            if (interactionOccurred)
-            {
-                // Comeu comida
-                if (Fuel > lastFuel)
-                {
-                    reinforcement += 1;
-                    lastCollectionTime = DateTime.Now;
-                }
-                // Pegou joia
-                Sack currentSack = worldServer.SendGetSack("0");
-                if (currentSack.n_crystal > lastSackCount)
-                {
-                    reinforcement += 1;
-                    lastCollectionTime = DateTime.Now;
-                    lastSackCount = currentSack.n_crystal;
-                }
-                // Entregou leaflet
-                if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && bestJewel.DistanceToCreature <= 50)
-                {
-                    reinforcement += 10;
-                    EndEpisode();
-                }
-            }
-            else if (interact > 0) // Tentou interagir e falhou
-            {
-                reinforcement -= 1;
-            }
-
-            // Aplicar o reforço
-            if (reinforcement != 0)
-            {
-                CurrentAgent.ReceiveFeedback(si, reinforcement);
-                Console.WriteLine($"[REINFORCEMENT] Agent received feedback: {reinforcement}");
-            }
-
-            // Atualizar valores para o próximo ciclo
-            lastJewelTheta = GetNextJewelTheta();
-            lastJewelRay = GetNextJewelRay();
-            lastFoodTheta = GetNextFoodTheta();
-            lastFoodRay = GetNextFoodRay();
-            lastFuel = Fuel;
-
-            // Verificar condições de fim de episódio
-            if (Fuel <= 0 || (DateTime.Now - lastCollectionTime).TotalSeconds > 10)
-            {
-                EndEpisode();
-            }
-        }
-
-        public void EndEpisode()
-        {
-            Console.WriteLine("[TRAINING] Episode finished.");
-            // Aqui você pode adicionar lógica para resetar o estado do agente/ambiente para um novo episódio
-            // Por exemplo, resetar a posição do agente, limpar o inventário, etc.
-            // Por enquanto, vamos apenas parar o ciclo cognitivo para este exemplo.
-            MaxNumberOfCognitiveCycles = CurrentCognitiveCycle; // Para o loop
-        }
 
     }
 }
