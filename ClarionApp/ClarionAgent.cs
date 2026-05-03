@@ -92,10 +92,6 @@ namespace ClarionApp
 
         #region Action Output
         /// <summary>
-        /// Output action that makes the agent to rotate clockwise
-        /// </summary>
-		private ExternalActionChunk outputRotateClockwise;
-        /// <summary>
         /// Output action that makes the agent go ahead
         /// </summary>
 		private ExternalActionChunk outputGoToFood;
@@ -115,7 +111,6 @@ namespace ClarionApp
         private ExternalActionChunk outputGoToDeliverySpot;
         #endregion
 
-        private SimplifiedQBPNetwork bottomLevelNetwork = null;
         private Thing deliverSpotLocation = null;
         private Thing bestJewel = null;
         private Thing bestFood = null;
@@ -123,15 +118,6 @@ namespace ClarionApp
         private Creature creature = null;
 
         private double Fuel = 0;
-
-        // Training state
-        private double lastJewelTheta = 0;
-        private double lastJewelRay = 0;
-        private double lastFoodTheta = 0;
-        private double lastFoodRay = 0;
-        private DateTime lastCollectionTime;
-        private int lastSackCount = 0;
-        private double lastFuel = 0;
 
         #endregion
 
@@ -145,7 +131,6 @@ namespace ClarionApp
 			mind.Show ();
 			creatureId = creature_ID;
 			creatureName = creature_Name;
-            lastCollectionTime = DateTime.Now;
 
             // Initialize Input Information
             inputWallAhead = World.NewDimensionValuePair(SENSOR_VISUAL_DIMENSION, DIMENSION_WALL_AHEAD);
@@ -257,8 +242,19 @@ namespace ClarionApp
                 case CreatureActions.GO_TO_DELIVERY_SPOT:
                     if (deliverSpotLocation != null)
                     {
-                        Console.WriteLine("Moving towards Delivery Spot: " + deliverSpotLocation.Name + "\n");
-                        worldServer.SendSetGoTo(creatureId, 3, 3, deliverSpotLocation.X1, deliverSpotLocation.Y1);
+
+
+                        // COmputa a distancia até o delivery spot usando os valores de x e y do creature e do delivery spot
+                        double distanceToDeliverySpot = Math.Sqrt(Math.Pow(deliverSpotLocation.X1 - creature.X1, 2) + Math.Pow(deliverSpotLocation.Y1 - creature.Y1, 2));
+                        if (distanceToDeliverySpot < 50)
+                        {
+                            interact();
+                        }
+                        else
+                        {
+                            Console.WriteLine("Moving towards Delivery Spot: " + deliverSpotLocation.Name + "\n");
+                            worldServer.SendSetGoTo(creatureId, 3, 3, deliverSpotLocation.X1, deliverSpotLocation.Y1);
+                        }
                     }
                     else
                     {
@@ -271,104 +267,6 @@ namespace ClarionApp
 				}
 			}
 		}
-
-        public double GetNextJewelTheta()
-        {
-            // Compute smallest signed angle (radians) to rotate creature to face the nearest jewel
-            try {
-
-                if (creature == null || bestJewel == null) return 0.0;
-
-                double dx = bestJewel.X1 - creature.X1;
-                double dy = bestJewel.Y1 - creature.Y1;
-                double targetAngle = Math.Atan2(dy, dx);
-
-
-                // current orientation (prad) is maintained in processSensoryInformation
-                double diff = targetAngle - prad;
-                while (diff > Math.PI) diff -= 2 * Math.PI;
-                while (diff <= -Math.PI) diff += 2 * Math.PI;
-                return diff;
-            }
-            catch (Exception ex) {
-                System.Console.WriteLine("Error in GetNextJewelTheta. Returning 0.0. Exception: " + ex.Message + "\n");
-                return 0.0;
-            }
-        }
-        public double GetNextJewelRay() 
-        { 
-            // System.Console.WriteLine("GetNextJewelRay called ...\n");
-            try {
-
-                if (creature == null || bestJewel == null) return 0.0;
-
-                double dx = bestJewel.X1 - creature.X1;
-                double dy = bestJewel.Y1 - creature.Y1;
-                
-                double dist = Math.Sqrt(dx * dx + dy * dy);
-
-                System.Console.WriteLine("Target Ray Jewel: " + dist + "\n");
-                return dist;
-            }
-            catch (Exception ex) {
-                System.Console.WriteLine("Error in GetNextJewelTheta. Returning 0.0. Exception: " + ex.Message + "\n");
-                return 0.0;
-            }
-        }
-        public double GetNextFoodTheta() 
-        { 
-            try {
-
-                if (creature == null || bestFood == null) return 0.0;
-
-                double dx = bestFood.X1 - creature.X1;
-                double dy = bestFood.Y1 - creature.Y1;
-                double targetAngle = Math.Atan2(dy, dx);
-
-
-                // current orientation (prad) is maintained in processSensoryInformation
-                double diff = targetAngle - prad;
-                while (diff > Math.PI) diff -= 2 * Math.PI;
-                while (diff <= -Math.PI) diff += 2 * Math.PI;
-                System.Console.WriteLine("Target Angle Food: " + targetAngle + " | Current Angle: " + prad + " | Diff: " + diff + "\n");
-                return diff;
-            }
-            catch (Exception ex) {
-                System.Console.WriteLine("Error in GetNextFoodTheta. Returning 0.0. Exception: " + ex.Message + "\n");
-                return 0.0;
-            }
-        }
-        public double GetNextFoodRay() 
-        { 
-            try {
-
-                if (creature == null || bestFood == null) return 0.0;
-
-                double dx = bestFood.X1 - creature.X1;
-                double dy = bestFood.Y1 - creature.Y1;
-                double dist = Math.Sqrt(dx * dx + dy * dy);
-
-                System.Console.WriteLine("Target Ray Food: " + dist + "\n");
-                return dist;
-            }
-            catch (Exception ex) {
-                System.Console.WriteLine("Error in GetNextFoodRay. Returning 0.0. Exception: " + ex.Message + "\n");
-                return 0.0;
-            }
-        }
-        public double GetFuel() 
-        { 
-            return Fuel; 
-        }
-
-        public void SetDirectionWalk(float value) 
-        { 
-            System.Console.WriteLine("SetDirectionWalk called with value: " + value + "\n"); 
-        }
-        public void SetInteract(float value) 
-        { 
-            System.Console.WriteLine("SetInteract called with value: " + value + "\n"); 
-        }
 
         #endregion
 
@@ -390,13 +288,17 @@ namespace ClarionApp
         /// <summary>
         /// Setup the ACS subsystem
         /// </summary>
+        
+        private double DistanceTo(Thing t) {
+            return Math.Sqrt(Math.Pow(t.X1 - creature.X1, 2) + Math.Pow(t.Y1 - creature.Y1, 2));
+        }
         private void SetupACS() // EXPLAIN: executado uma vez quando o agente é criado
         {
             
             // Rule to go to food when fuel is low
             SupportCalculator goToFoodSupportCalculator = (currentInput, target) =>
             {
-                if (Searching_food && bestFood != null && bestFood.DistanceToCreature >= 50)
+                if (Searching_food && bestFood != null && DistanceTo(bestFood) >= 50)
                 {
                     return 1.0;
                 }
@@ -408,7 +310,7 @@ namespace ClarionApp
             // Rule to go to jewel when fuel is not low
             SupportCalculator goToJewelSupportCalculator = (currentInput, target) =>
             {
-                if (!Searching_food && bestJewel != null && bestJewel.DistanceToCreature >= 50)
+                if (!Searching_food && bestJewel != null && DistanceTo(bestJewel) >= 50)
                 {
                     return 1.0;
                 }
@@ -420,9 +322,20 @@ namespace ClarionApp
             // Rule to interact when close to an object
             SupportCalculator interactSupportCalculator = (currentInput, target) =>
             {
-                bool canInteractWithFood = Searching_food && bestFood != null && bestFood.DistanceToCreature < 50;
-                bool canInteractWithJewel = !Searching_food && bestJewel != null && bestJewel.DistanceToCreature < 50;
-                if (canInteractWithFood || canInteractWithJewel)
+                int n_joias_faltantes = 0;
+                if (bestLeaflet != null)
+                {
+                    foreach (LeafletItem li in bestLeaflet.items)
+                    {
+                        n_joias_faltantes += (li.totalNumber - li.collected);
+                    }
+                }
+
+                bool canInteractWithFood = Searching_food && bestFood != null && DistanceTo(bestFood) < 50;
+                bool canInteractWithJewel = !Searching_food && bestJewel != null && DistanceTo(bestJewel) < 50;
+                bool canInteractWithDelivery = !Searching_food && deliverSpotLocation != null && DistanceTo(deliverSpotLocation) < 50 && n_joias_faltantes == 0;
+
+                if (canInteractWithFood || canInteractWithJewel || canInteractWithDelivery)
                 {
                     return 1.0;
                 }
@@ -434,9 +347,27 @@ namespace ClarionApp
             // Rule to explore when no other action is taken
             SupportCalculator exploreSupportCalculator = (currentInput, target) =>
             {
-                // This rule has a lower priority and will be chosen if others don't apply.
-                // We can return a small constant value to make it a default action.
-                return 0.1;
+                int n_joias_faltantes = 0;
+                if (bestLeaflet != null)
+                {
+                    foreach (LeafletItem li in bestLeaflet.items)
+                    {
+                        n_joias_faltantes += (li.totalNumber - li.collected);
+                    }
+                }
+
+                bool canGoToDeliverySpot = !Searching_food && n_joias_faltantes == 0 && deliverSpotLocation != null && DistanceTo(deliverSpotLocation) >= 50;
+                bool canInteractWithFood = Searching_food && bestFood != null && DistanceTo(bestFood) < 50;
+                bool canInteractWithJewel = !Searching_food && bestJewel != null && DistanceTo(bestJewel) < 50;
+                bool canInteractWithDelivery = !Searching_food && deliverSpotLocation != null && DistanceTo(deliverSpotLocation) < 50 && n_joias_faltantes == 0;
+                bool canGoToFood = Searching_food && bestFood != null && DistanceTo(bestFood) >= 50;
+                bool canGoToJewel = !Searching_food && bestJewel != null && DistanceTo(bestJewel) >= 50;
+
+                if (!canInteractWithFood && !canInteractWithJewel && !canInteractWithDelivery && !canGoToFood && !canGoToJewel && !canGoToDeliverySpot)
+                {
+                    return 1.0;
+                }
+                return 0.0;
             };
             FixedRule ruleExplore = AgentInitializer.InitializeActionRule(CurrentAgent, FixedRule.Factory, outputExplore, exploreSupportCalculator);
             CurrentAgent.Commit(ruleExplore);
@@ -453,7 +384,7 @@ namespace ClarionApp
                     }
                 }
 
-                if (!Searching_food && n_joias_faltantes == 0 && deliverSpotLocation != null && deliverSpotLocation.DistanceToCreature >= 50)
+                if (!Searching_food && n_joias_faltantes == 0 && deliverSpotLocation != null && DistanceTo(deliverSpotLocation) >= 50)
                 {
                     return 1.0;
                 }
@@ -479,11 +410,7 @@ namespace ClarionApp
             CurrentAgent.ACS.Parameters.FIXED_RER_LEVEL_SELECTION_MEASURE = 0;
         }
 
-        /// <summary>
-        /// Make the agent perception. In other words, translate the information that came from sensors to a new type that the agent can understand
-        /// </summary>
-        /// <param name="sensorialInformation">The information that came from server</param>
-        /// <returns>The perceived information</returns>
+
 		private SensoryInformation prepareSensoryInformation(IList<Thing> listOfThings)
         {
             // New sensory information
@@ -493,12 +420,6 @@ namespace ClarionApp
             Boolean wallAhead = listOfThings.Where(item => (item.CategoryId == Thing.CATEGORY_BRICK && item.DistanceToCreature <= 61)).Any();
             double wallAheadActivationValue = wallAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
             si.Add(inputWallAhead, wallAheadActivationValue);
-
-            si.Add(inputNextJewelTheta, GetNextJewelTheta());
-            si.Add(inputNextJewelRay, GetNextJewelRay());
-            si.Add(inputNextFoodTheta, GetNextJewelTheta());
-            si.Add(inputNextFoodRay, GetNextJewelRay());
-            si.Add(inputFuel, GetFuel());
 
 
 			//Console.WriteLine(sensorialInformation);
@@ -539,9 +460,9 @@ namespace ClarionApp
 
                     foreach (Thing joia in joiasDaCor)
                     {
-                        if (joia.DistanceToCreature < menorDistanciaPorCor)
+                        if (DistanceTo(joia) < menorDistanciaPorCor)
                         {
-                            menorDistanciaPorCor = joia.DistanceToCreature;
+                            menorDistanciaPorCor = DistanceTo(joia);
                             bestJewel = joia;
                         }
                     }
@@ -557,7 +478,7 @@ namespace ClarionApp
                     foreach (LeafletItem li in bestLeaflet.items) {
                         n_joias_faltantes += (li.totalNumber - li.collected);
                     }
-                    System.Console.WriteLine("Número de joias faltantes: " + n_joias_faltantes + "\n");
+                    // System.Console.WriteLine("Número de joias faltantes: " + n_joias_faltantes + "\n");
 
 
                     if (bestJewel == null && n_joias_faltantes == 0) {
@@ -580,9 +501,9 @@ namespace ClarionApp
 
                     foreach (Thing comida in comidasVisivel)
                     {
-                        if (comida.DistanceToCreature < menorDistanciaFood)
+                        if (DistanceTo(comida) < menorDistanciaFood)
                         {
-                            menorDistanciaFood = comida.DistanceToCreature;
+                            menorDistanciaFood = DistanceTo(comida);
                             bestFood = comida;
                         }
                     }
@@ -600,40 +521,26 @@ namespace ClarionApp
         }
         #endregion
 
-        #region Fixed Rules
-        private double FixedRuleToAvoidCollisionWall(ActivationCollection currentInput, Rule target)
-        {
-            // See partial match threshold to verify what are the rules available for action selection
-            return ((currentInput.Contains(inputWallAhead, CurrentAgent.Parameters.MAX_ACTIVATION))) ? 1.0 : 0.0;
-        }
-
-        private double FixedRuleToGoAhead(ActivationCollection currentInput, Rule target)
-        {
-            // Here we will make the logic to go ahead
-            return ((currentInput.Contains(inputWallAhead, CurrentAgent.Parameters.MIN_ACTIVATION))) ? 1.0 : 0.0;
-        }
-        #endregion
-
         private void interact()
         {
             // se bestFood for uma comida e estiver com distancia menor que 50, interage (come a comida)
-            if (bestFood != null && bestFood.CategoryId == Thing.CATEGORY_FOOD && bestFood.DistanceToCreature <= 50)
+            if (bestFood != null && bestFood.CategoryId == Thing.CATEGORY_FOOD && DistanceTo(bestFood) <= 50)
             {
                 worldServer.SendEatIt(creatureId, bestFood.Name);
                 System.Console.WriteLine("Eating Food: " + bestFood.Name + "\n");
             }
             // se bestJewel for uma joia e estiver com distancia menor que 50, interage (pega a joia)
-            else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_JEWEL && bestJewel.DistanceToCreature <= 50)
+            else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_JEWEL && DistanceTo(bestJewel) <= 50)
             {
                 worldServer.SendSackIt(creatureId, bestJewel.Name);
                 System.Console.WriteLine("Picking Up Jewel: " + bestJewel.Name + "\n");
             }
-            else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && bestJewel.DistanceToCreature <= 50)
+            else if (bestJewel != null && bestJewel.CategoryId == Thing.CATEGORY_DeliverySPOT && DistanceTo(bestJewel) <= 50)
             {
                 worldServer.deliverLeaflet(creatureId, bestLeaflet.leafletID.ToString());
                 System.Console.WriteLine("Delivering Items at Delivery Spot: " + bestJewel.Name + "\n");
             }
-            else if (deliverSpotLocation != null && deliverSpotLocation.DistanceToCreature <= 50)
+            else if (deliverSpotLocation != null && DistanceTo(deliverSpotLocation) <= 50)
             {
                 worldServer.deliverLeaflet(creatureId, bestLeaflet.leafletID.ToString());
                 System.Console.WriteLine("Delivering Items at Delivery Spot: " + deliverSpotLocation.Name + "\n");
@@ -659,61 +566,20 @@ namespace ClarionApp
                     CurrentAgent.Perceive(si);
 
                     // Regras explícitas
-                    if (GetFuel() > 600)
+                    if (Fuel > 600)
                     {
                         Searching_food = false;
                     }
-                    else if (GetFuel() < 300)
+                    else if (Fuel < 300)
                     {
                         Searching_food = true;
                     }
 
-                    bool madeSomeAction = false;
+                    // O agente escolhe a ação a ser executada a partir do NACS/ACS
+                    ExternalActionChunk chosenAction = CurrentAgent.GetChosenExternalAction(si);
 
-                    if (Searching_food)
-                    {
-                        if (bestFood != null)
-                        {
-                            if (bestFood.DistanceToCreature < 50)
-                            {
-                                interact();
-                                madeSomeAction = true;
-                            }
-                            else
-                            {
-                                // Move towards food
-                                Console.WriteLine("Moving towards Food: " + bestFood.Name + " Position: (" + bestFood.X1 + ", " + bestFood.Y1 + ") My Position: (" + creature.X1 + ", " + creature.Y1 + ")\n");
-                                worldServer.SendSetGoTo(creatureId, 3, 3, bestFood.X1, bestFood.Y1);
-                                madeSomeAction = true;
-                            }
-                        }
-                    }
-                    else // Searching for jewel
-                    {
-                        System.Console.WriteLine("Searching for Jewel, bestJewel: " + (bestJewel != null ? bestJewel.Name : "null") + "\n");
-                        if (bestJewel != null)
-                        {
-                            if (bestJewel.DistanceToCreature < 50)
-                            {
-                                interact();
-                                madeSomeAction = true;
-                            }
-                            else
-                            {
-                                // Move towards jewel
-                                Console.WriteLine("Moving towards Jewel: " + bestJewel.Name + "\n");
-                                worldServer.SendSetGoTo(creatureId, 3, 3, bestJewel.X1, bestJewel.Y1);
-                                madeSomeAction = true;
-                            }
-                        }
-                    }
-                    if (!madeSomeAction)
-                    {
-                        // If no specific action was taken, just rotate to explore the environment
-                        Console.WriteLine("No specific action taken. Rotating to explore...\n");
-                        worldServer.SendSetAngle(creatureId, 2, -2, 2);
-                    }
-
+                    // Executa a ação escolhida
+                    processSelectedAction(chosenAction);
 
                     // Increment the number of cognitive cycles
                     CurrentCognitiveCycle++;
